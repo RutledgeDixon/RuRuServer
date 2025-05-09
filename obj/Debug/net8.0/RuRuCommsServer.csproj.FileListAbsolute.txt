@@ -1,0 +1,14 @@
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.AssemblyInfoInputs.cache
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.AssemblyInfo.cs
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.csproj.CoreCompileInputs.cache
+C:\Users\rutle\source\repos\RuRuCommsServer\bin\Debug\net8.0\RuRuCommsServer.exe
+C:\Users\rutle\source\repos\RuRuCommsServer\bin\Debug\net8.0\RuRuCommsServer.deps.json
+C:\Users\rutle\source\repos\RuRuCommsServer\bin\Debug\net8.0\RuRuCommsServer.runtimeconfig.json
+C:\Users\rutle\source\repos\RuRuCommsServer\bin\Debug\net8.0\RuRuCommsServer.dll
+C:\Users\rutle\source\repos\RuRuCommsServer\bin\Debug\net8.0\RuRuCommsServer.pdb
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.dll
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\refint\RuRuCommsServer.dll
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.pdb
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\RuRuCommsServer.genruntimeconfig.cache
+C:\Users\rutle\source\repos\RuRuCommsServer\obj\Debug\net8.0\ref\RuRuCommsServer.dll
