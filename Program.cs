@@ -7,7 +7,8 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-//Console.WriteLine("Hello, World!");
+//This is a basic TCP server for RuRu Comms
+//NOTE: using public IP does not work at the moment
 
 public class SimpleServer
 {
@@ -20,10 +21,27 @@ public class SimpleServer
         string publicIp = GetPublicIpAddress();
         Console.WriteLine($"Public IP Address: {publicIp}");
 
-        string localIp = Dns.GetHostEntry(Dns.GetHostName()).AddressList[0].ToString();
+        string localIp = GetLocalIpAddress();
         Console.WriteLine($"Local IP Address: {localIp}");
 
-        _listener = new TcpListener(IPAddress.Any, port);
+        Console.WriteLine("\nType P for using public IP and L for local IP: ");
+        string? ans = Console.ReadLine();
+
+        if (ans.Equals("P", StringComparison.CurrentCultureIgnoreCase))
+        {
+            Console.WriteLine("Using public IP address.");
+            _listener = new TcpListener(IPAddress.Parse(GetPublicIpAddress()), port);
+        } 
+        else if (ans.Equals("L", StringComparison.CurrentCultureIgnoreCase))
+        {
+            Console.WriteLine("Using local IP address.");
+            _listener = new TcpListener(IPAddress.Parse(GetLocalIpAddress()), port);
+        } 
+        else
+        {
+            Console.WriteLine("Invalid input. Defaulting to local IP.");
+            _listener = new TcpListener(IPAddress.Parse(GetLocalIpAddress()), port);
+        }
         _listener.Start();
         Console.WriteLine($"Server started on port {port}");
 
@@ -102,6 +120,27 @@ public class SimpleServer
         {
             Console.WriteLine($"Error fetching public IP: {ex.Message}");
             return "Unavailable";
+        }
+    }
+
+    private string GetLocalIpAddress()
+    {
+        try
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    return ip.ToString();
+                }
+            }
+            throw new Exception("No IPv4 address found");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching local IP: {ex.Message}");
+            return "127.0.0.1"; // Fallback to localhost
         }
     }
 }
