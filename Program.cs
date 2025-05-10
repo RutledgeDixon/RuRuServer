@@ -20,6 +20,9 @@ public class SimpleServer
         string publicIp = GetPublicIpAddress();
         Console.WriteLine($"Public IP Address: {publicIp}");
 
+        string localIp = Dns.GetHostEntry(Dns.GetHostName()).AddressList[0].ToString();
+        Console.WriteLine($"Local IP Address: {localIp}");
+
         _listener = new TcpListener(IPAddress.Any, port);
         _listener.Start();
         Console.WriteLine($"Server started on port {port}");
