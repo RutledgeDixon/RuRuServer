@@ -24,24 +24,8 @@ public class SimpleServer
         string localIp = GetLocalIpAddress();
         Console.WriteLine($"Local IP Address: {localIp}");
 
-        Console.WriteLine("\nType P for using public IP and L for local IP: ");
-        string? ans = Console.ReadLine();
+        _listener = new TcpListener(IPAddress.Any, port); // Listen on all network interfaces
 
-        if (ans.Equals("P", StringComparison.CurrentCultureIgnoreCase))
-        {
-            Console.WriteLine("Using public IP address.");
-            _listener = new TcpListener(IPAddress.Parse(GetPublicIpAddress()), port);
-        } 
-        else if (ans.Equals("L", StringComparison.CurrentCultureIgnoreCase))
-        {
-            Console.WriteLine("Using local IP address.");
-            _listener = new TcpListener(IPAddress.Parse(GetLocalIpAddress()), port);
-        } 
-        else
-        {
-            Console.WriteLine("Invalid input. Defaulting to local IP.");
-            _listener = new TcpListener(IPAddress.Parse(GetLocalIpAddress()), port);
-        }
         _listener.Start();
         Console.WriteLine($"Server started on port {port}");
 
