@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RuRuCommsServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9a46d211c96c81878c31e4096df644d813d1b6bd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dd0213e8958bb497acf45e26b5ae4fb270b9a1a2")]
 [assembly: System.Reflection.AssemblyProductAttribute("RuRuCommsServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RuRuCommsServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

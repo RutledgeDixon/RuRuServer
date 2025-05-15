@@ -15,10 +15,23 @@ public class SimpleServer
 {
     public int serverPort = 5000; // Default port
     private TcpListener _listener;
-    private List<TcpClient> _clients = new List<TcpClient>();
+    private List<Client> _clients = new List<Client>();
     private List<string> messageBuffer = new List<string>();
     private string lastConnectedClientId = string.Empty;
+    public class Client
+    {
+        public TcpClient TcpClient { get; }
+        public string Id { get; }
+
+        public Client(TcpClient tcpClient, string id)
+        {
+            TcpClient = tcpClient;
+            Id = id;
+        }
+    }
     private readonly object bufferLock = new();
+    private readonly object clientsLock = new();
+
     public void Start(int port)
     {
         string publicIp = GetPublicIpAddress();
@@ -34,36 +47,48 @@ public class SimpleServer
 
         while (true)
         {
-            TcpClient client = _listener.AcceptTcpClient();
+            TcpClient tcpClient = _listener.AcceptTcpClient();
 
-            // if 2 clients already connected, reject the new connection
-            if (_clients.Count >= 2)
+            // Read the client ID from the stream
+            NetworkStream stream = tcpClient.GetStream();
+            byte[] buffer = new byte[1024];
+            int idBytesRead = stream.Read(buffer, 0, buffer.Length);
+            string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead).Trim();
+
+            var client = new Client(tcpClient, clientId);
+
+            lock (clientsLock)
             {
-                Console.WriteLine("Client connection rejected: server full.");
-                // send a rejection message to the client before closing
-                try
+                if (_clients.Count >= 2)
                 {
-                    var stream = client.GetStream();
-                    byte[] msg = Encoding.UTF8.GetBytes("BxFServer full. Try again later.\n");
-                    stream.Write(msg, 0, msg.Length);
+                    Console.WriteLine("Client connection rejected: server full.");
+                    try
+                    {
+                        byte[] msg = Encoding.UTF8.GetBytes("Server full. Try again later.\n");
+                        stream.Write(msg, 0, msg.Length);
+                    }
+                    catch { }
+                    tcpClient.Close();
+                    continue;
                 }
-                catch { }
-                client.Close();
-                continue;
+                _clients.Add(client);
             }
 
-            _clients.Add(client);
-            Console.WriteLine($"Client connected: {client.Client.RemoteEndPoint}");
+            //otherwise keep the client
+            Console.WriteLine($"Client connected: {client.Id}: {tcpClient.Client.RemoteEndPoint}");
 
             // Notify other clients about the new connection
-            string notification = $"BxF_SERVER_New connection: {client.Client.RemoteEndPoint}";
+            string notification = $"BxF_SERVER_New connection: {tcpClient.Client.RemoteEndPoint}";
             byte[] notificationBytes = Encoding.UTF8.GetBytes(notification);
 
-            foreach (var otherClient in _clients)
+            lock (clientsLock)
             {
-                if (otherClient != client)
+                foreach (var otherClient in _clients)
                 {
-                    otherClient.GetStream().Write(notificationBytes, 0, notificationBytes.Length);
+                    if (otherClient != client)
+                    {
+                        otherClient.TcpClient.GetStream().Write(notificationBytes, 0, notificationBytes.Length);
+                    }
                 }
             }
 
@@ -73,28 +98,16 @@ public class SimpleServer
         }
     }
 
-    private void HandleClient(TcpClient client)
+    private void HandleClient(Client client)
     {
-        NetworkStream stream = client.GetStream();
+        NetworkStream stream = client.TcpClient.GetStream();
         byte[] buffer = new byte[1024];
 
-        // Read client ID as the first message
-        int idBytesRead = stream.Read(buffer, 0, buffer.Length);
-        string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead);
-
-
-        // send the buffered messages to the client
-        // if the client is not the last connected client
-        if (lastConnectedClientId != string.Empty && lastConnectedClientId != clientId)
+        // Send buffered messages if this client hasn't sent them
+        if(client.Id != lastConnectedClientId)
         {
-            lock (bufferLock)
-            {
-                sendBufferedMessages(client);
-            }
+            sendBufferedMessages(client.TcpClient);
         }
-
-        // update the last connected client ID
-        lastConnectedClientId = clientId;
 
         while (true)
         {
@@ -106,22 +119,17 @@ public class SimpleServer
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                 Console.WriteLine($"Received: {message}");
 
-                // Relay the message to all other clients
-
-                // send message to clients
-                // if no other clients are connected, save message to buffer to send once a client connects
                 bool relayed = false;
-
-                foreach (var otherClient in _clients)
-                {
-                    if (otherClient != client)
+                    foreach (var otherClient in _clients)
                     {
-                        otherClient.GetStream().Write(buffer, 0, bytesRead);
-                        relayed = true;
+                        if (otherClient != client)
+                        {
+                            otherClient.TcpClient.GetStream().Write(buffer, 0, bytesRead);
+                            relayed = true;
+                        }
                     }
-                }
 
-                // Buffer only if not relayed to anyone
+                // Buffer only if there is no other client to relay to
                 if (!relayed)
                 {
                     lock (bufferLock)
@@ -132,14 +140,20 @@ public class SimpleServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error handling client: {client.Client.RemoteEndPoint} \nException: {ex}");
+                Console.WriteLine($"Error handling client: {client.TcpClient.Client.RemoteEndPoint} \nException: {ex}");
                 break;
             }
         }
 
-        Console.WriteLine($"Client disconnected: {client.Client.RemoteEndPoint}");
+        Console.WriteLine($"Client disconnected: {client.TcpClient.Client.RemoteEndPoint}");
+        //if this was the only client, change last connected client id
+        if (_clients.Count == 1)
+        {
+            lastConnectedClientId = client.Id;
+        }
         _clients.Remove(client);
-        client.Close();
+        client.TcpClient.Close();
+        
     }
 
     private string GetPublicIpAddress()
