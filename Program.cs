@@ -120,6 +120,7 @@ public class SimpleServer
                 Console.WriteLine($"Received: {message}");
 
                 bool relayed = false;
+                lock (clientsLock) { 
                     foreach (var otherClient in _clients)
                     {
                         if (otherClient != client)
@@ -128,6 +129,7 @@ public class SimpleServer
                             relayed = true;
                         }
                     }
+                }
 
                 // Buffer only if there is no other client to relay to
                 if (!relayed)
@@ -135,6 +137,7 @@ public class SimpleServer
                     lock (bufferLock)
                     {
                         messageBuffer.Add(message);
+                        Console.WriteLine($"Adding to buffer message: {message}");
                     }
                 }
             }
@@ -151,7 +154,10 @@ public class SimpleServer
         {
             lastConnectedClientId = client.Id;
         }
-        _clients.Remove(client);
+        lock (clientsLock)
+        {
+            _clients.Remove(client);
+        }
         client.TcpClient.Close();
         
     }
