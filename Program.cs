@@ -106,7 +106,7 @@ public class SimpleServer
         // Send buffered messages if this client hasn't sent them
         if(client.Id != lastConnectedClientId)
         {
-            sendBufferedMessages(client.TcpClient);
+            sendBufferedMessages(client);
         }
 
         while (true)
@@ -208,7 +208,7 @@ public class SimpleServer
         }
     }
 
-    private void sendBufferedMessages(TcpClient client)
+    private void sendBufferedMessages(Client client)
     {
         if (messageBuffer.Count != 0)
         {
@@ -219,11 +219,12 @@ public class SimpleServer
             {
                 string msgWithDelimiter = messageBuffer[i] + "\n";
                 byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
-                client.GetStream().Write(msgBytes, 0, msgBytes.Length);
+                client.TcpClient.GetStream().Write(msgBytes, 0, msgBytes.Length);
             }
             //empty messageBuffer
             messageBuffer.Clear();
         }
+        lastConnectedClientId = client.Id; // Update the last connected client ID
     }
 }
 
