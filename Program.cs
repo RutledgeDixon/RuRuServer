@@ -153,9 +153,11 @@ public class SimpleServer
     private void sendBufferedMessages(TcpClient client)
     {
         //send each message starting at the beginning
-        for(int i = 0; i < messageBuffer.Count; i++)
+        for (int i = 0; i < messageBuffer.Count; i++)
         {
-            client.GetStream().Write(Encoding.UTF8.GetBytes(messageBuffer[i]), 0, messageBuffer[i].Length);
+            string msgWithDelimiter = messageBuffer[i] + "\n";
+            byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
+            client.GetStream().Write(msgBytes, 0, msgBytes.Length);
         }
         //empty messageBuffer
         messageBuffer.Clear();
