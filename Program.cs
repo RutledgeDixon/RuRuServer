@@ -126,6 +126,7 @@ public class SimpleServer
                         if (otherClient != client)
                         {
                             otherClient.TcpClient.GetStream().Write(buffer, 0, bytesRead);
+                            Console.WriteLine($"Relayed to: {otherClient.Id}");
                             relayed = true;
                         }
                     }
@@ -149,17 +150,22 @@ public class SimpleServer
         }
 
         Console.WriteLine($"Client disconnected: {client.TcpClient.Client.RemoteEndPoint}");
-        //if this was the only client, change last connected client id
-        if (_clients.Count == 1)
-        {
-            lastConnectedClientId = client.Id;
-        }
+        
         lock (clientsLock)
         {
             _clients.Remove(client);
         }
         client.TcpClient.Close();
-        
+
+        //if this was the only client, change last connected client id
+        if (_clients.Count == 0)
+        {
+            lastConnectedClientId = client.Id;
+        }
+        else
+        {
+            lastConnectedClientId = _clients[0].Id;
+        }
     }
 
     private string GetPublicIpAddress()
