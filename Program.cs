@@ -17,6 +17,7 @@ public class SimpleServer
     private TcpListener _listener;
     private List<TcpClient> _clients = new List<TcpClient>();
     private List<string> messageBuffer = new List<string>();
+    private string lastConnectedClientId = string.Empty;
     private readonly object bufferLock = new();
     public void Start(int port)
     {
@@ -34,6 +35,23 @@ public class SimpleServer
         while (true)
         {
             TcpClient client = _listener.AcceptTcpClient();
+
+            // if 2 clients already connected, reject the new connection
+            if (_clients.Count >= 2)
+            {
+                Console.WriteLine("Client connection rejected: server full.");
+                // send a rejection message to the client before closing
+                try
+                {
+                    var stream = client.GetStream();
+                    byte[] msg = Encoding.UTF8.GetBytes("BxFServer full. Try again later.\n");
+                    stream.Write(msg, 0, msg.Length);
+                }
+                catch { }
+                client.Close();
+                continue;
+            }
+
             _clients.Add(client);
             Console.WriteLine($"Client connected: {client.Client.RemoteEndPoint}");
 
@@ -60,11 +78,23 @@ public class SimpleServer
         NetworkStream stream = client.GetStream();
         byte[] buffer = new byte[1024];
 
+        // Read client ID as the first message
+        int idBytesRead = stream.Read(buffer, 0, buffer.Length);
+        string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead);
+
+
         // send the buffered messages to the client
-        lock (bufferLock)
+        // if the client is not the last connected client
+        if (lastConnectedClientId != string.Empty && lastConnectedClientId != clientId)
         {
-            sendBufferedMessages(client);
+            lock (bufferLock)
+            {
+                sendBufferedMessages(client);
+            }
         }
+
+        // update the last connected client ID
+        lastConnectedClientId = clientId;
 
         while (true)
         {
@@ -78,16 +108,18 @@ public class SimpleServer
 
                 // Relay the message to all other clients
 
+                // send message to clients
                 // if no other clients are connected, save message to buffer to send once a client connects
                 bool relayed = false;
-                    foreach (var otherClient in _clients)
+
+                foreach (var otherClient in _clients)
+                {
+                    if (otherClient != client)
                     {
-                        if (otherClient != client)
-                        {
-                            otherClient.GetStream().Write(buffer, 0, bytesRead);
-                            relayed = true;
-                        }
+                        otherClient.GetStream().Write(buffer, 0, bytesRead);
+                        relayed = true;
                     }
+                }
 
                 // Buffer only if not relayed to anyone
                 if (!relayed)
@@ -152,15 +184,20 @@ public class SimpleServer
 
     private void sendBufferedMessages(TcpClient client)
     {
-        //send each message starting at the beginning
-        for (int i = 0; i < messageBuffer.Count; i++)
+        if (messageBuffer.Count != 0)
         {
-            string msgWithDelimiter = messageBuffer[i] + "\n";
-            byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
-            client.GetStream().Write(msgBytes, 0, msgBytes.Length);
+            Console.WriteLine($"Sending {messageBuffer.Count} buffered messages to client...");
+
+            //send each message starting at the beginning
+            for (int i = 0; i < messageBuffer.Count; i++)
+            {
+                string msgWithDelimiter = messageBuffer[i] + "\n";
+                byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
+                client.GetStream().Write(msgBytes, 0, msgBytes.Length);
+            }
+            //empty messageBuffer
+            messageBuffer.Clear();
         }
-        //empty messageBuffer
-        messageBuffer.Clear();
     }
 }
 
