@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks.Dataflow;
 
 //This is a basic TCP server for RuRu Comms
 //NOTE: using public IP does not work at the moment
@@ -15,7 +16,8 @@ public class SimpleServer
     public int serverPort = 5000; // Default port
     private TcpListener _listener;
     private List<TcpClient> _clients = new List<TcpClient>();
-
+    private List<string> messageBuffer = new List<string>();
+    private readonly object bufferLock = new();
     public void Start(int port)
     {
         string publicIp = GetPublicIpAddress();
@@ -36,7 +38,7 @@ public class SimpleServer
             Console.WriteLine($"Client connected: {client.Client.RemoteEndPoint}");
 
             // Notify other clients about the new connection
-            string notification = $"A new client has connected: {client.Client.RemoteEndPoint}";
+            string notification = $"BxF_SERVER_New connection: {client.Client.RemoteEndPoint}";
             byte[] notificationBytes = Encoding.UTF8.GetBytes(notification);
 
             foreach (var otherClient in _clients)
@@ -58,6 +60,12 @@ public class SimpleServer
         NetworkStream stream = client.GetStream();
         byte[] buffer = new byte[1024];
 
+        // send the buffered messages to the client
+        lock (bufferLock)
+        {
+            sendBufferedMessages(client);
+        }
+
         while (true)
         {
             try
@@ -69,16 +77,30 @@ public class SimpleServer
                 Console.WriteLine($"Received: {message}");
 
                 // Relay the message to all other clients
-                foreach (var otherClient in _clients)
-                {
-                    if (otherClient != client)
+
+                // if no other clients are connected, save message to buffer to send once a client connects
+                bool relayed = false;
+                    foreach (var otherClient in _clients)
                     {
-                        otherClient.GetStream().Write(buffer, 0, bytesRead);
+                        if (otherClient != client)
+                        {
+                            otherClient.GetStream().Write(buffer, 0, bytesRead);
+                            relayed = true;
+                        }
+                    }
+
+                // Buffer only if not relayed to anyone
+                if (!relayed)
+                {
+                    lock (bufferLock)
+                    {
+                        messageBuffer.Add(message);
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error handling client: {client.Client.RemoteEndPoint} \nException: {ex}");
                 break;
             }
         }
@@ -126,6 +148,17 @@ public class SimpleServer
             Console.WriteLine($"Error fetching local IP: {ex.Message}");
             return "127.0.0.1"; // Fallback to localhost
         }
+    }
+
+    private void sendBufferedMessages(TcpClient client)
+    {
+        //send each message starting at the beginning
+        for(int i = 0; i < messageBuffer.Count; i++)
+        {
+            client.GetStream().Write(Encoding.UTF8.GetBytes(messageBuffer[i]), 0, messageBuffer[i].Length);
+        }
+        //empty messageBuffer
+        messageBuffer.Clear();
     }
 }
 
