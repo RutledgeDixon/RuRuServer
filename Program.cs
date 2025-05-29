@@ -5,30 +5,23 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using RuRuCommsServer;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
 //This is a basic TCP server for RuRu Comms
-//NOTE: using public IP does not work at the moment
+//NOTE: buffered messages have a client Id attached to them, sending buffered messages
+//      will send messages to any client other than the one that sent that specific message
 
 public class SimpleServer
 {
+    //net stuff
     public int serverPort = 5000; // Default port
-    private TcpListener _listener;
+    private TcpListener? _listener;
     private List<Client> _clients = new List<Client>();
+    //message buffer
     private List<string> messageBuffer = new List<string>();
-    private string lastConnectedClientId = string.Empty;
-    public class Client
-    {
-        public TcpClient TcpClient { get; }
-        public string Id { get; }
-
-        public Client(TcpClient tcpClient, string id)
-        {
-            TcpClient = tcpClient;
-            Id = id;
-        }
-    }
+    //locks
     private readonly object bufferLock = new();
     private readonly object clientsLock = new();
 
@@ -40,8 +33,7 @@ public class SimpleServer
         string localIp = GetLocalIpAddress();
         Console.WriteLine($"Local IP Address: {localIp}");
 
-        _listener = new TcpListener(IPAddress.Any, port); // Listen on all network interfaces
-
+        _listener = new TcpListener(IPAddress.Any, port); // Listen on public and private IPs
         _listener.Start();
         Console.WriteLine($"Server started on port {port}");
 
@@ -50,13 +42,34 @@ public class SimpleServer
             TcpClient tcpClient = _listener.AcceptTcpClient();
 
             // Read the client ID from the stream
+            // If the client does not send an ID, kick them bc they sus
             NetworkStream stream = tcpClient.GetStream();
+            stream.ReadTimeout = 5000; // 5 seconds timeout
             byte[] buffer = new byte[1024];
-            int idBytesRead = stream.Read(buffer, 0, buffer.Length);
+            int idBytesRead = 0;
+            try
+            {
+                idBytesRead = stream.Read(buffer, 0, buffer.Length);
+            }
+            catch (IOException)
+            {
+                Console.WriteLine("Client did not send ID in time. Connection closed.");
+                tcpClient.Close();
+                continue;
+            }
+            if (idBytesRead == 0)
+            {
+                Console.WriteLine("Client disconnected before sending ID.");
+                tcpClient.Close();
+                continue;
+            }
             string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead).Trim();
 
+            //create a new client
             var client = new Client(tcpClient, clientId);
 
+            // kick out the client if there are already 2 connected
+            // otherwise add the client to the list and continue
             lock (clientsLock)
             {
                 if (_clients.Count >= 2)
@@ -68,30 +81,22 @@ public class SimpleServer
                         stream.Write(msg, 0, msg.Length);
                     }
                     catch { }
-                    tcpClient.Close();
+                    client.TcpClient.Close();
                     continue;
                 }
                 _clients.Add(client);
             }
 
-            //otherwise keep the client
-            Console.WriteLine($"Client connected: {client.Id}: {tcpClient.Client.RemoteEndPoint}");
+            Console.WriteLine($"Client connected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}");
 
             // Notify other clients about the new connection
-            string notification = $"BxF_SERVER_New connection: {tcpClient.Client.RemoteEndPoint}";
-            byte[] notificationBytes = Encoding.UTF8.GetBytes(notification);
-
+            string notification = $"BxF_SERVER_New connection: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}";
             lock (clientsLock)
             {
-                foreach (var otherClient in _clients)
-                {
-                    if (otherClient != client)
-                    {
-                        otherClient.TcpClient.GetStream().Write(notificationBytes, 0, notificationBytes.Length);
-                    }
-                }
+                client.sendMessage(_clients, notification);
             }
 
+            //create a thread for the new client
             Thread clientThread = new Thread(() => HandleClient(client));
             clientThread.IsBackground = true;
             clientThread.Start();
@@ -103,11 +108,8 @@ public class SimpleServer
         NetworkStream stream = client.TcpClient.GetStream();
         byte[] buffer = new byte[1024];
 
-        // Send buffered messages if this client hasn't sent them
-        if(client.Id != lastConnectedClientId)
-        {
-            sendBufferedMessages(client);
-        }
+        // send buffered messages to the client
+        messageBuffer = client.receiveBufferedMessages(messageBuffer);
 
         while (true)
         {
@@ -118,27 +120,17 @@ public class SimpleServer
 
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                 Console.WriteLine($"Received: {message}");
-
-                bool relayed = false;
                 lock (clientsLock) { 
-                    foreach (var otherClient in _clients)
-                    {
-                        if (otherClient != client)
-                        {
-                            otherClient.TcpClient.GetStream().Write(buffer, 0, bytesRead);
-                            Console.WriteLine($"Relayed to: {otherClient.Id}");
-                            relayed = true;
-                        }
-                    }
+                    client.sendMessage(_clients, message);
                 }
 
                 // Buffer only if there is no other client to relay to
-                if (!relayed)
+                if (_clients.Count <= 1)
                 {
                     lock (bufferLock)
                     {
-                        messageBuffer.Add(message);
-                        Console.WriteLine($"Adding to buffer message: {message}");
+                        messageBuffer.Add(client.Id + ": " + message);
+                        Console.WriteLine($"Adding to buffer: {client.Id}: {message}");
                     }
                 }
             }
@@ -151,21 +143,20 @@ public class SimpleServer
 
         Console.WriteLine($"Client disconnected: {client.TcpClient.Client.RemoteEndPoint}");
         
+        //send a message that the client has disconnected
+        string disconnectMessage = $"BxF_SERVER_Client disconnected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}";
+        lock (clientsLock)
+        {
+            client.sendMessage(_clients, disconnectMessage);
+        }
+
+        //remove the client from the client list
         lock (clientsLock)
         {
             _clients.Remove(client);
         }
         client.TcpClient.Close();
 
-        //if this was the only client, change last connected client id
-        if (_clients.Count == 0)
-        {
-            lastConnectedClientId = client.Id;
-        }
-        else
-        {
-            lastConnectedClientId = _clients[0].Id;
-        }
     }
 
     private string GetPublicIpAddress()
@@ -208,24 +199,6 @@ public class SimpleServer
         }
     }
 
-    private void sendBufferedMessages(Client client)
-    {
-        if (messageBuffer.Count != 0)
-        {
-            Console.WriteLine($"Sending {messageBuffer.Count} buffered messages to client...");
-
-            //send each message starting at the beginning
-            for (int i = 0; i < messageBuffer.Count; i++)
-            {
-                string msgWithDelimiter = messageBuffer[i] + "\n";
-                byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
-                client.TcpClient.GetStream().Write(msgBytes, 0, msgBytes.Length);
-            }
-            //empty messageBuffer
-            messageBuffer.Clear();
-        }
-        lastConnectedClientId = client.Id; // Update the last connected client ID
-    }
 }
 
 class Program
