@@ -90,7 +90,7 @@ public class SimpleServer
             Console.WriteLine($"Client connected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}");
 
             // Notify other clients about the new connection
-            string notification = $"BxF_SERVER_New connection: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}";
+            string notification = $"BxF_SERVER_New connection: {client.Id}";
             lock (clientsLock)
             {
                 client.sendMessage(_clients, notification);
@@ -106,6 +106,7 @@ public class SimpleServer
     private void HandleClient(Client client)
     {
         NetworkStream stream = client.TcpClient.GetStream();
+        stream.ReadTimeout = Timeout.Infinite;
         byte[] buffer = new byte[1024];
 
         // send buffered messages to the client
@@ -144,7 +145,7 @@ public class SimpleServer
         Console.WriteLine($"Client disconnected: {client.TcpClient.Client.RemoteEndPoint}");
         
         //send a message that the client has disconnected
-        string disconnectMessage = $"BxF_SERVER_Client disconnected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}";
+        string disconnectMessage = $"BxF_SERVER_Client disconnected: {client.Id}";
         lock (clientsLock)
         {
             client.sendMessage(_clients, disconnectMessage);
