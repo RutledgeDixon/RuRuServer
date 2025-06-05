@@ -23,7 +23,7 @@ namespace RuRuCommsServer
             //send all messages that were not from this client
             if (messageBuffer.Count != 0)
             {
-                Console.WriteLine($"Sending {messageBuffer.Count} buffered messages to client...");
+                int numSentMessages = 0;
 
                 //loop through all messages in the buffer
                 for (int i = messageBuffer.Count - 1; i >= 0; i--)
@@ -31,7 +31,7 @@ namespace RuRuCommsServer
                     //check if the sender is not the same as this client
                     string message = messageBuffer[i];
                     string msgId = message.Substring(0, message.IndexOf(":"));
-                    string msg = message.Substring(message.IndexOf(':') + 2);
+                    string msg = message.Substring(msgId.Length+2);
                     if (this.Id != msgId)
                     {
                         //send the message
@@ -39,10 +39,14 @@ namespace RuRuCommsServer
                         byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
                         this.TcpClient.GetStream().Write(msgBytes, 0, msgBytes.Length);
 
+                        //increment numSentMessages
+                        numSentMessages++;
+
                         //remove the message from messageBuffer
                         messageBuffer.RemoveAt(i);
                     }
                 }
+                Console.WriteLine($"Sent {numSentMessages} buffered messages to client");
 
             }
             return messageBuffer;

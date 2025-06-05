@@ -168,8 +168,8 @@ public class SimpleServer
                     lock (bufferLock)
                     {
                         //message buffer is a queue, so add messages to the beginning
-                        messageBuffer.Insert(0, client.Id + ": " + message);
-                        Console.WriteLine($"Adding to buffer: {client.Id}: {message}");
+                        messageBuffer.Insert(0, client.Id + "::" + message);
+                        Console.WriteLine($"Adding to buffer: {client.Id}::{message}");
                     }
                 }
             }
