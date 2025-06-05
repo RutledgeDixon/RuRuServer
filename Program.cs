@@ -39,67 +39,104 @@ public class SimpleServer
 
         while (true)
         {
-            TcpClient tcpClient = _listener.AcceptTcpClient();
-
-            // Read the client ID from the stream
-            // If the client does not send an ID, kick them bc they sus
-            NetworkStream stream = tcpClient.GetStream();
-            stream.ReadTimeout = 5000; // 5 seconds timeout
-            byte[] buffer = new byte[1024];
-            int idBytesRead = 0;
             try
             {
-                idBytesRead = stream.Read(buffer, 0, buffer.Length);
-            }
-            catch (IOException)
-            {
-                Console.WriteLine("Client did not send ID in time. Connection closed.");
-                tcpClient.Close();
-                continue;
-            }
-            if (idBytesRead == 0)
-            {
-                Console.WriteLine("Client disconnected before sending ID.");
-                tcpClient.Close();
-                continue;
-            }
-            string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead).Trim();
+                TcpClient tcpClient = _listener.AcceptTcpClient();
 
-            //create a new client
-            var client = new Client(tcpClient, clientId);
-
-            // kick out the client if there are already 2 connected
-            // otherwise add the client to the list and continue
-            lock (clientsLock)
-            {
-                if (_clients.Count >= 2)
+                // Read the client ID from the stream
+                // If the client does not send an ID, or sends an ID not in valid_ids.txt,
+                // kick them because they sus
+                NetworkStream stream = tcpClient.GetStream();
+                stream.ReadTimeout = 5000; // 5 seconds timeout
+                byte[] buffer = new byte[1024];
+                int idBytesRead = 0;
+                try
                 {
-                    Console.WriteLine("Client connection rejected: server full.");
-                    try
-                    {
-                        byte[] msg = Encoding.UTF8.GetBytes("Server full. Try again later.\n");
-                        stream.Write(msg, 0, msg.Length);
-                    }
-                    catch { }
-                    client.TcpClient.Close();
+                    //get the client ID bytes from the stream
+                    idBytesRead = stream.Read(buffer, 0, buffer.Length);
+                }
+                catch (IOException)
+                {
+                    Console.WriteLine("Client did not send ID in time. Connection closed.");
+                    tcpClient.Close();
                     continue;
                 }
-                _clients.Add(client);
+                if (idBytesRead == 0)
+                {
+                    Console.WriteLine("Client disconnected before sending ID.");
+                    tcpClient.Close();
+                    continue;
+                }
+
+                // get a string of the client ID
+                string clientId = Encoding.UTF8.GetString(buffer, 0, idBytesRead).Trim();
+
+                // check if the client ID is valid and is in the valid_ids.txt file
+                if (!clientId.StartsWith("BxF_ID_"))
+                {
+                    Console.WriteLine($"Client {clientId} did not send a valid ID. Connection closed.");
+                    tcpClient.Close();
+                    continue;
+                }
+                //remove the prefix "BxF_ID_"
+                clientId = clientId.Substring("BxF_ID_".Length);
+                if (!System.IO.File.Exists("valid_ids.txt"))
+                {
+                    Console.WriteLine("No file for valid ids. Please create a file named valid_ids.txt and populate with valid ids.");
+                    tcpClient.Close();
+                    continue;
+                }
+                if (!System.IO.File.ReadAllLines("valid_ids.txt").Contains(clientId))
+                {
+                    Console.WriteLine($"Client {clientId} not on the nice list. Connection closed.");
+                    tcpClient.Close();
+                    continue;
+                }
+                
+
+                //create a new client
+                var client = new Client(tcpClient, clientId);
+
+                // kick out the client if there are already 2 connected
+                // otherwise add the client to the list and continue
+                lock (clientsLock)
+                {
+                    if (_clients.Count >= 2)
+                    {
+                        Console.WriteLine("Client connection rejected: server full.");
+                        try
+                        {
+                            byte[] msg = Encoding.UTF8.GetBytes("Server full. Try again later.\n");
+                            stream.Write(msg, 0, msg.Length);
+                        }
+                        catch { }
+                        client.TcpClient.Close();
+                        continue;
+                    }
+                    _clients.Add(client);
+                }
+
+                //at this point, the client is valid, connected, and <= 2 clients are connected
+
+                Console.WriteLine($"Client connected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}");
+
+                // Notify other clients about the new connection
+                string notification = $"BxF_SERVER_New connection: {client.Id}";
+                lock (clientsLock)
+                {
+                    client.sendMessage(_clients, notification);
+                }
+
+                //create a thread for the new client
+                Thread clientThread = new Thread(() => HandleClient(client));
+                clientThread.IsBackground = true;
+                clientThread.Start();
             }
-
-            Console.WriteLine($"Client connected: {client.Id}: {client.TcpClient.Client.RemoteEndPoint}");
-
-            // Notify other clients about the new connection
-            string notification = $"BxF_SERVER_New connection: {client.Id}";
-            lock (clientsLock)
+            catch (Exception ex)
             {
-                client.sendMessage(_clients, notification);
+                Console.WriteLine($"Error accepting client: {ex.Message}");
+                continue;
             }
-
-            //create a thread for the new client
-            Thread clientThread = new Thread(() => HandleClient(client));
-            clientThread.IsBackground = true;
-            clientThread.Start();
         }
     }
 
@@ -130,14 +167,15 @@ public class SimpleServer
                 {
                     lock (bufferLock)
                     {
-                        messageBuffer.Add(client.Id + ": " + message);
+                        //message buffer is a queue, so add messages to the beginning
+                        messageBuffer.Insert(0, client.Id + ": " + message);
                         Console.WriteLine($"Adding to buffer: {client.Id}: {message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error handling client: {client.TcpClient.Client.RemoteEndPoint} \nException: {ex}");
+                Console.WriteLine($"Error handling client: {client.TcpClient.Client.RemoteEndPoint}: {ex}");
                 break;
             }
         }

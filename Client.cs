@@ -31,7 +31,7 @@ namespace RuRuCommsServer
                     //check if the sender is not the same as this client
                     string message = messageBuffer[i];
                     string msgId = message.Substring(0, message.IndexOf(":"));
-                    string msg = message.Substring(message.IndexOf(':') + 1);
+                    string msg = message.Substring(message.IndexOf(':') + 2);
                     if (this.Id != msgId)
                     {
                         //send the message
