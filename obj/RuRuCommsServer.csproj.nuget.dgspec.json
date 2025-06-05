@@ -1,15 +1,15 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\rutle\\source\\repos\\RuRuServer\\RuRuCommsServer.csproj": {}
+    "C:\\Users\\rutle\\Source\\Repos\\RuRuServer\\RuRuCommsServer.csproj": {}
   },
   "projects": {
-    "C:\\Users\\rutle\\source\\repos\\RuRuServer\\RuRuCommsServer.csproj": {
+    "C:\\Users\\rutle\\Source\\Repos\\RuRuServer\\RuRuCommsServer.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\rutle\\source\\repos\\RuRuServer\\RuRuCommsServer.csproj",
+        "projectUniqueName": "C:\\Users\\rutle\\Source\\Repos\\RuRuServer\\RuRuCommsServer.csproj",
         "projectName": "RuRuCommsServer",
-        "projectPath": "C:\\Users\\rutle\\source\\repos\\RuRuServer\\RuRuCommsServer.csproj",
+        "projectPath": "C:\\Users\\rutle\\Source\\Repos\\RuRuServer\\RuRuCommsServer.csproj",
         "packagesPath": "C:\\Users\\rutle\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\rutle\\Source\\Repos\\RuRuServer\\obj\\",
         "projectStyle": "PackageReference",
