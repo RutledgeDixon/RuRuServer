@@ -3,7 +3,7 @@ Server side for RuRu
 Simple TCP server:
   1. Allows up to two clients at a time
   2. If only one client is logged on, buffers messages and sends them to the next unique client
-  3. Encodes messages using RuRu style
+  3. Encodes messages in the same format as RuRuComms
 
 # *Installation Instructions:*
   1. Download the release RRS.zip, extract, and store the folder in somewhere where you will remember
