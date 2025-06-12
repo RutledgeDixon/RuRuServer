@@ -9,9 +9,9 @@ Simple TCP server:
   1. Download the release and store the folder in somewhere where you will remember
   2. Allow port-forwarding on your router for the IP address that the server is run off of
   3. Open Task Scheduler and create a new task that runs RuRuCommsServer.exe from the folder you downloaded every time your computer starts up
-     a. search for 'Task Scheduler' and run it
-     b. click 'Create Task...'
-     c. name the task
-     d. go to the triggers tab and add an 'at startup' trigger
-     e. go to the actions tab, add an action, choose 'Start a program' from the dropdown, hit the browse button, and find RuRuCommsServer.exe
-     f. go to the settings tab, and uncheck the box that would stop the task after a certain number of days
+     1. search for 'Task Scheduler' and run it
+     2. click 'Create Task...'
+     3. name the task
+     4. go to the triggers tab and add an 'at startup' trigger
+     5. go to the actions tab, add an action, choose 'Start a program' from the dropdown, hit the browse button, and find RuRuCommsServer.exe
+     6. go to the settings tab, and uncheck the box that would stop the task after a certain number of days
