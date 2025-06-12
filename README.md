@@ -6,7 +6,7 @@ Simple TCP server:
   3. Encodes messages using RuRu style
 
 # *Installation Instructions:*
-  1. Download the release and store the folder in somewhere where you will remember
+  1. Download the release RRS.zip, extract, and store the folder in somewhere where you will remember
   2. Allow port-forwarding on your router for the IP address that the server is run off of
   3. Open Task Scheduler and create a new task that runs RuRuCommsServer.exe from the folder you downloaded every time your computer starts up
      1. search for 'Task Scheduler' and run it
