@@ -1,6 +1,6 @@
 # RuRuServer
-Server side for RuRu
-Simple TCP server:
+
+Simple TCP server for RuRu:
   1. Allows up to two clients at a time
   2. If only one client is logged on, buffers messages and sends them to the next unique client
   3. Encodes messages in the same format as RuRuComms
