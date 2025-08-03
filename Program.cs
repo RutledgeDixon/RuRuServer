@@ -17,7 +17,7 @@ using System.Threading.Tasks.Dataflow;
 public class SimpleServer
 {
     //net stuff
-    public int serverPort = 5000; // Default port
+    public int serverPort = 50512; // Non-default port
     private TcpListener? _listener;
     private List<Client> _clients = new List<Client>();
     //message buffer
@@ -268,4 +268,5 @@ class Program
         SimpleServer server = new SimpleServer();
         server.Start(server.serverPort); // Start the server on port 5000
     }
+
 }
