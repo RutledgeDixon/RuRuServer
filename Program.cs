@@ -266,7 +266,7 @@ class Program
     static void Main(string[] args)
     {
         SimpleServer server = new SimpleServer();
-        server.Start(server.serverPort); // Start the server on port 5000
+        server.Start(server.serverPort); // Start the server
     }
 
 }
