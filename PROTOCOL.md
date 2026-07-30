@@ -4,14 +4,18 @@ This document describes the wire protocol used by this server.
 
 ## Transport
 
-1. Protocol: TCP over IPv4.
-2. Listen port: `50512`.
-3. Max concurrent clients: `2`.
+Two transports are supported, sharing the same client list, message buffer, and auth/relay rules:
+
+1. **Raw TCP** (used by the original RuRuComms desktop client): TCP over IPv4, listen port `50512`.
+2. **WebSocket** (used by the ruffleskerman.com web client): `wss://` on port `50513`, path `/ruru/`. Requires a real TLS certificate (browsers block mixed-content `ws://` from an HTTPS page), so this is exposed as `wss://ruru.ruffleskerman.com:50513/ruru/` (or an equivalent standard-port reverse-proxy mapping).
+3. Max concurrent clients: `2`, counted across both transports combined.
+
+Each logical message must be sendable/receivable as a single frame/read on either transport: one WebSocket text frame corresponds to one TCP `Read()` call's worth of bytes (up to 1024 bytes). Clients should send each logical message in a single write, per the framing notes below.
 
 ## Connection and Authentication
 
-1. Client opens a TCP connection to `server:50512`.
-2. Client must immediately send its identity frame (server waits up to 5 seconds).
+1. Client opens a TCP connection to `server:50512`, or a WebSocket connection to `wss://server:50513/ruru/`.
+2. Client must immediately send its identity frame (server waits up to 5 seconds), as a single TCP write or a single WebSocket text frame.
 3. Identity frame format:
 
 ```text
@@ -32,11 +36,11 @@ Then closes the connection.
 
 ## Message Flow
 
-1. After authentication, client sends plain text payloads on the same TCP stream.
-2. Server relays each received payload to all other connected clients.
-3. Relay frames sent by server are newline-terminated.
+1. After authentication, client sends plain text payloads on the same connection (TCP stream or WebSocket).
+2. Server relays each received payload to all other connected clients, regardless of which transport they're on (a TCP client and a WebSocket client can freely relay to each other).
+3. Relay frames sent by server are newline-terminated on the TCP transport. On the WebSocket transport, the same newline-terminated string is sent as the WebSocket text frame payload (clients should trim it).
 
-There are no HTTP endpoints, methods, or RPC names. This is raw message forwarding over TCP.
+There are no HTTP endpoints, methods, or RPC names beyond the WebSocket upgrade handshake at `/ruru/`. This is raw message forwarding.
 
 ## Server Control Frames
 

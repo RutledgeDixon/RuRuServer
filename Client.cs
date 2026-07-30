@@ -1,20 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RuRuCommsServer
 {
     public class Client
     {
-        public TcpClient TcpClient { get; }
+        public IClientChannel Channel { get; }
         public string Id { get; }
 
-        public Client(TcpClient tcpClient, string id)
+        public Client(IClientChannel channel, string id)
         {
-            TcpClient = tcpClient;
+            Channel = channel;
             Id = id;
         }
         public List<string> receiveBufferedMessages(List<string> messageBuffer)
@@ -35,9 +31,7 @@ namespace RuRuCommsServer
                     if (this.Id != msgId)
                     {
                         //send the message
-                        string msgWithDelimiter = msg + "\n";
-                        byte[] msgBytes = Encoding.UTF8.GetBytes(msgWithDelimiter);
-                        this.TcpClient.GetStream().Write(msgBytes, 0, msgBytes.Length);
+                        this.Channel.Send(msg + "\n");
 
                         //increment numSentMessages
                         numSentMessages++;
@@ -59,8 +53,7 @@ namespace RuRuCommsServer
             {
                 if (client != this)
                 {
-                    byte[] msgBytes = Encoding.UTF8.GetBytes(message + "\n");
-                    client.TcpClient.GetStream().Write(msgBytes, 0, msgBytes.Length);
+                    client.Channel.Send(message + "\n");
                     Console.WriteLine($"Sent message to {client.Id}: {message}");
                 }
             }
